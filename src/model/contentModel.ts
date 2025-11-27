@@ -5,7 +5,7 @@ interface Icontent {
     link: string;
     title: string;
     tags: string[];
-    userID: Types.ObjectId;
+    userId: Types.ObjectId;
 }
 
 const contentSchema = new Schema<Icontent>({
@@ -17,9 +17,9 @@ const contentSchema = new Schema<Icontent>({
     link: { type: String, required: true },
     title: { type: String, required: true },
     tags: [{ type: String, required: false }],
-    userID: { type: Schema.Types.ObjectId, required: true, ref: "User" },
+    userId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
 });
 
-const content = model<Icontent>("content", contentSchema);
+const ContentModel = model<Icontent>("Content", contentSchema);
 
-export default content;
+export default ContentModel;

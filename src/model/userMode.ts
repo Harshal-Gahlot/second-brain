@@ -9,9 +9,9 @@ interface IUser {
 const userSchema = new Schema<IUser>({
     username: { type: String, required: true, minlength: [3, "username must be 3 letters long"] },
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true, minlength: [6, "password must be 6 letters long"] },
+    password: { type: String, required: true }, // Remove minlength since we hash the password
 });
 
-const User = model<IUser>("user", userSchema);
+const UserModel = model<IUser>("User", userSchema);
 
-export default User;
+export default UserModel;
