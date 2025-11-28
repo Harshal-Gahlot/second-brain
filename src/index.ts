@@ -1,5 +1,5 @@
 // import mongoose from "mongoose";
-console.log("index.ts running")
+console.log("index.ts running");
 import jwt from "jsonwebtoken";
 import "dotenv/config";
 import { hash, compare } from "bcrypt";
@@ -11,10 +11,13 @@ import UserModel, { type IUser } from "./model/userMode.js";
 import LinkModel, { type Ilink } from "./model/linkModel.js";
 import ContentModel from "./model/contentModel.js";
 import hashLinkGen from "./utils/randomHashLinkGenerator.js";
+import cors from "cors";
+import { userInfo } from "os";
 
 console.log("imported everything");
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 const PORT = Number(process.env.PORT);
 
@@ -25,13 +28,13 @@ export const signUpZodSchema = z.object({
     email: z.email(),
     password: z.string().min(6, "password must be 6 letters long"),
 });
+
 export const signInZodSchema = signUpZodSchema.omit({ username: true });
 
 const contentZodSchema = z.object({
     title: z.string(),
     link: z.string(),
     type: z.string(),
-    userId: z.string(),
     tags: z.array(z.string()).optional(),
 });
 
@@ -39,7 +42,7 @@ export type SignUpInfo = z.infer<typeof signUpZodSchema>;
 export type SignInInfo = z.infer<typeof signInZodSchema>;
 
 app.post("/api/v1/signup", async (req, res) => {
-    console.log("signup req came");
+    console.log("signup req came", req.body);
 
     try {
         const validateReq: SignUpInfo = signUpZodSchema.parse(req.body);
@@ -59,8 +62,12 @@ app.post("/api/v1/signup", async (req, res) => {
         res.status(201).json({ mission: "success", username: validateReq.username, email: validateReq.email });
     } catch (e: any) {
         if (e instanceof z.ZodError) {
-            console.log("invalid input format, zod validation failed");
-            res.status(401).json({ mission: "failed", message: "invalid input format, zod validation failed" });
+            console.log("invalid input format, zod validation failed", e);
+            res.status(401).json({
+                mission: "failed",
+                message: "invalid input format, zod validation failed",
+                error: e.message,
+            });
         } else if (e.code === 11000) {
             console.log("user already exist");
             res.status(409).json({ mission: "failed", message: "user already exist, try login log in instead" });
@@ -137,7 +144,7 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
             link: data.link,
             type: data.type,
             title: data.title,
-            userId: data.userId,
+            userId: req.userId,
             tags: data.tags,
         });
 
@@ -151,8 +158,11 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
 
 app.get("/api/v1/content", userMiddleware, async (req, res) => {
     try {
-        const content = await ContentModel.findOne({ userId: req.body.userId }).populate("userId", "username email");
-        res.status(200).json({ mission: "success", content });
+        const content = await ContentModel.find({ userId: req.userId }).populate<{ userId: IUser }>(
+            "userId",
+            "username email"
+        );
+        res.status(200).json({ content });
     } catch (e) {
         console.log("error occurred brotha:", e);
     }
@@ -160,7 +170,7 @@ app.get("/api/v1/content", userMiddleware, async (req, res) => {
 
 app.delete("/api/v1/content", userMiddleware, async (req, res) => {
     try {
-        await ContentModel.deleteOne({ userId: req.body.userId });
+        await ContentModel.deleteOne({ userId: req.userId });
         res.status(200).json({ mission: "success", message: "content deleted successfully" });
     } catch (e) {
         console.log("error occurred", e);
@@ -176,14 +186,14 @@ app.post("/api/v1/share", userMiddleware, async (req, res) => {
             const hashLink: string = hashLinkGen(10);
             await LinkModel.create({
                 hashLink,
-                userId: req.body.userId,
+                userId: req.userId,
             });
             res.status(200).json({ mission: "success", message: hashLink });
         } else {
             const hashLink = z.string().parse(req.body.hashLink);
             await LinkModel.deleteOne({
                 hashLink,
-                userId: req.body.userId,
+                userId: req.userId,
             });
             res.status(200).json({ mission: "success", message: "link is deactivated" });
         }

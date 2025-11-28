@@ -1,6 +1,6 @@
 import { Schema, Types, model } from "mongoose";
 
-interface Icontent {
+export interface Icontent {
     type: "document" | "tweet" | "youtube" | "link";
     link: string;
     title: string;
