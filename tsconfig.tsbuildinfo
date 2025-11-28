@@ -1,1 +1,1 @@
-{"root":["./src/db.ts","./src/index.ts","./src/middleware.ts","./src/model/contentModel.ts","./src/model/userMode.ts","./src/types/expressReq.d.ts"],"version":"5.9.3"}
+{"root":["./src/db.ts","./src/index.ts","./src/middleware.ts","./src/model/contentModel.ts","./src/model/linkModel.ts","./src/model/userMode.ts","./src/types/expressReq.d.ts","./src/utils/randomHashLinkGenerator.ts"],"version":"5.9.3"}

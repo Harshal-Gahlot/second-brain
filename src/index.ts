@@ -1,19 +1,24 @@
 // import mongoose from "mongoose";
+console.log("index.ts running")
 import jwt from "jsonwebtoken";
 import "dotenv/config";
 import { hash, compare } from "bcrypt";
 import { z } from "zod";
 import express from "express";
 import mongoose from "./db.js";
-import UserModel from "./model/userMode.js";
-import ContentModel from "./model/contentModel.js";
 import userMiddleware from "./middleware.js";
+import UserModel, { type IUser } from "./model/userMode.js";
+import LinkModel, { type Ilink } from "./model/linkModel.js";
+import ContentModel from "./model/contentModel.js";
+import hashLinkGen from "./utils/randomHashLinkGenerator.js";
 
 console.log("imported everything");
 const app = express();
 app.use(express.json());
 
-const PORT: number = 3000;
+const PORT = Number(process.env.PORT);
+
+type Ires = (Omit<Ilink, "userId"> & { userId: Pick<IUser, "username" | "email" | "_id"> }) | null;
 
 export const signUpZodSchema = z.object({
     username: z.string().min(3, "username must be 3 letters long"),
@@ -163,9 +168,54 @@ app.delete("/api/v1/content", userMiddleware, async (req, res) => {
     }
 });
 
-app.post("/api/v1/share", userMiddleware, async (req, res) => {});
+app.post("/api/v1/share", userMiddleware, async (req, res) => {
+    try {
+        const share = z.coerce.boolean().parse(req.body.share);
+        console.log("share", share);
+        if (share) {
+            const hashLink: string = hashLinkGen(10);
+            await LinkModel.create({
+                hashLink,
+                userId: req.body.userId,
+            });
+            res.status(200).json({ mission: "success", message: hashLink });
+        } else {
+            const hashLink = z.string().parse(req.body.hashLink);
+            await LinkModel.deleteOne({
+                hashLink,
+                userId: req.body.userId,
+            });
+            res.status(200).json({ mission: "success", message: "link is deactivated" });
+        }
+    } catch (e) {
+        console.log("error occurred", e);
+        res.status(400).json({ mission: "failed", error_message: e });
+    }
+});
 
-app.post("/api/v1/brain/:shareLink", async (req, res) => {});
+app.get("/api/v1/brain/:shareLink", async (req, res) => {
+    console.log("share link came");
+    try {
+        const hashLink = req.params.shareLink;
+
+        const response = (await LinkModel.findOne({ hashLink }).populate("userId", "username email _id")) as Ires;
+        if (!response) {
+            res.status(404).json({ mission: "failed", message: "no such link exist" });
+            return;
+        }
+
+        const content = await ContentModel.find({ userId: response.userId._id });
+        res.status(200).json({
+            mission: "success",
+            content,
+            username: response.userId.username,
+            email: response.userId.email,
+        });
+    } catch (error) {
+        console.log("error", error);
+        res.status(400).json({ mission: "failed", error_message: error });
+    }
+});
 
 app.listen(PORT, () => {
     console.log("server is listening on port", PORT);
